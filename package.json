@@ -1,0 +1,51 @@
+{
+  "name": "fixitnow",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "server.ts",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "npx prisma generate && npx tsc",
+    "postinstall": "npx prisma generate",
+    "start": "node dist/server.js",
+    "stripe:webhook": "node scripts/stripe-listen.mjs",
+    "db:seed": "tsx prisma/models/seed.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "prisma": {
+    "seed": "tsx prisma/models/seed.ts"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^26.0.0",
+    "@types/pg": "^8.20.0",
+    "@types/swagger-ui-express": "^4.1.8",
+    "@vercel/node": "^5.3.6",
+    "tsx": "^4.22.4"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "http-status": "^2.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.22.0",
+    "prisma": "^7.8.0",
+    "sslcommerz-lts": "^1.2.0",
+    "stripe": "^22.3.0",
+    "swagger-ui-express": "^5.0.1",
+    "typescript": "^6.0.3",
+    "zod": "^4.4.3"
+  }
+}
