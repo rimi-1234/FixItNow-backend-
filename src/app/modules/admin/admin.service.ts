@@ -4,7 +4,10 @@ import { IAdminBookingFilters, IAdminUserFilters } from './admin.interface.js';
 import { USER_SEARCHABLE_FIELDS } from './admin.constant.js';
 
 const getAllUsers = async (filters: IAdminUserFilters) => {
-  const { role, status, search } = filters;
+  const { role, status, search, page = '1', limit = '20' } = filters;
+
+  const skip = (Number(page) - 1) * Number(limit);
+  const take = Number(limit);
 
   const andConditions: Prisma.UserWhereInput[] = [];
 
@@ -20,51 +23,71 @@ const getAllUsers = async (filters: IAdminUserFilters) => {
 
   const where: Prisma.UserWhereInput = andConditions.length ? { AND: andConditions } : {};
 
-  return prisma.user.findMany({
-    where,
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      status: true,
-      createdAt: true,
-      technicianProfile: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const [data, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        technicianProfile: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { data, meta: { total, page: Number(page), limit: take } };
 };
 
 const updateUserStatus = async (userId: string, status: 'ACTIVE' | 'BANNED') => {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
-
-  return prisma.user.update({
-    where: { id: userId },
-    data: { status },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      status: true,
-      updatedAt: true,
-    },
-  });
+  try {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: { status },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025') throw Object.assign(new Error('User not found'), { statusCode: 404 });
+    throw err;
+  }
 };
 
 const getAllBookings = async (filters: IAdminBookingFilters) => {
-  const { status } = filters;
+  const { status, page = '1', limit = '20' } = filters;
 
-  return prisma.booking.findMany({
-    where: status ? { status } : {},
-    include: {
-      customer: { select: { id: true, email: true } },
-      technician: { select: { id: true, email: true, technicianProfile: true } },
-      service: { include: { category: true } },
-      payment: true,
-      review: true,
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const skip = (Number(page) - 1) * Number(limit);
+  const take = Number(limit);
+  const where = status ? { status } : {};
+
+  const [data, total] = await Promise.all([
+    prisma.booking.findMany({
+      where,
+      include: {
+        customer: { select: { id: true, email: true } },
+        technician: { select: { id: true, email: true, technicianProfile: true } },
+        service: { include: { category: true } },
+        payment: true,
+        review: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.booking.count({ where }),
+  ]);
+
+  return { data, meta: { total, page: Number(page), limit: take } };
 };
 
 export const AdminServices = {

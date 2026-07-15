@@ -12,5 +12,7 @@ model Service {
   technician User      @relation(fields: [technicianId], references: [id], onDelete: Cascade)
   bookings   Booking[]
 
+  @@index([technicianId])
+  @@index([categoryId])
   @@map("services")
 }

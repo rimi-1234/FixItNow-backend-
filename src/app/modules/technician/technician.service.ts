@@ -86,19 +86,10 @@ const getTechnicianById = async (id: string) => {
 };
 
 const updateProfile = async (id: string, payload: ITechnicianUpdateProfilePayload) => {
-  const profile = await prisma.technicianProfile.findUnique({
+  return prisma.technicianProfile.upsert({
     where: { userId: id },
-  });
-
-  if (!profile) {
-    return prisma.technicianProfile.create({
-      data: { userId: id, ...payload },
-    });
-  }
-
-  return prisma.technicianProfile.update({
-    where: { userId: id },
-    data: payload,
+    create: { userId: id, skills: [], ...payload },
+    update: payload,
   });
 };
 
@@ -128,10 +119,8 @@ const updateBookingStatus = async (
   bookingId: string,
   status: BookingStatus
 ) => {
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking) throw Object.assign(new Error('Booking not found'), { statusCode: 404 });
-  if (booking.technicianId !== technicianId)
-    throw Object.assign(new Error('Access denied: Not your booking'), { statusCode: 403 });
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId, technicianId } });
+  if (!booking) throw Object.assign(new Error('Booking not found or access denied'), { statusCode: 404 });
 
   // Validate allowed transitions
   // Flow: REQUESTED → ACCEPTED → PAID → IN_PROGRESS → COMPLETED

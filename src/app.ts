@@ -9,7 +9,27 @@ import { PaymentServices } from "./app/modules/payment/payment.service.js";
 
 const app: Application = express();
 
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  process.env.FRONTEND_URL,
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server requests (no origin) and allowed origins
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} is not allowed`));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
 // Stripe webhooks require the raw, unparsed request body to verify the
 // signature — this MUST be registered before the global JSON body parser,

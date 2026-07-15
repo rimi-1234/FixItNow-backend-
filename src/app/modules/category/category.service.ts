@@ -19,13 +19,12 @@ const createCategory = async (payload: ICategoryPayload) => {
 };
 
 const updateCategory = async (id: string, payload: Partial<ICategoryPayload>) => {
-  const category = await prisma.category.findUnique({ where: { id } });
-  if (!category) throw Object.assign(new Error('Category not found'), { statusCode: 404 });
-
-  return prisma.category.update({
-    where: { id },
-    data: payload,
-  });
+  try {
+    return await prisma.category.update({ where: { id }, data: payload });
+  } catch (err: any) {
+    if (err.code === 'P2025') throw Object.assign(new Error('Category not found'), { statusCode: 404 });
+    throw err;
+  }
 };
 
 const deleteCategory = async (id: string) => {

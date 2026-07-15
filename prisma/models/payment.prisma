@@ -12,5 +12,6 @@ model Payment {
 
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
+  @@index([transactionId])
   @@map("payments")
 }

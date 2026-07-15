@@ -86,16 +86,18 @@ const createService = async (technicianId: string, payload: IServicePayload) => 
 };
 
 const updateService = async (technicianId: string, serviceId: string, payload: IServiceUpdatePayload) => {
-  const service = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!service) throw Object.assign(new Error('Service not found'), { statusCode: 404 });
-  if (service.technicianId !== technicianId) {
-    throw Object.assign(new Error('Access denied: Not your service'), { statusCode: 403 });
-  }
+  const [service, category] = await Promise.all([
+    prisma.service.findUnique({ where: { id: serviceId } }),
+    payload.categoryId
+      ? prisma.category.findUnique({ where: { id: payload.categoryId } })
+      : Promise.resolve(true),
+  ]);
 
-  if (payload.categoryId) {
-    const category = await prisma.category.findUnique({ where: { id: payload.categoryId } });
-    if (!category) throw Object.assign(new Error('Category not found'), { statusCode: 404 });
-  }
+  if (!service) throw Object.assign(new Error('Service not found'), { statusCode: 404 });
+  if (service.technicianId !== technicianId)
+    throw Object.assign(new Error('Access denied: Not your service'), { statusCode: 403 });
+  if (payload.categoryId && !category)
+    throw Object.assign(new Error('Category not found'), { statusCode: 404 });
 
   return prisma.service.update({
     where: { id: serviceId },
@@ -105,11 +107,8 @@ const updateService = async (technicianId: string, serviceId: string, payload: I
 };
 
 const deleteService = async (technicianId: string, serviceId: string) => {
-  const service = await prisma.service.findUnique({ where: { id: serviceId } });
-  if (!service) throw Object.assign(new Error('Service not found'), { statusCode: 404 });
-  if (service.technicianId !== technicianId) {
-    throw Object.assign(new Error('Access denied: Not your service'), { statusCode: 403 });
-  }
+  const service = await prisma.service.findUnique({ where: { id: serviceId, technicianId } });
+  if (!service) throw Object.assign(new Error('Service not found or access denied'), { statusCode: 404 });
 
   return prisma.service.delete({ where: { id: serviceId } });
 };

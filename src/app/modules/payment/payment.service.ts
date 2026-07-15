@@ -157,10 +157,9 @@ const createPaymentIntent = async (
 };
 
 const markBookingPaid = async (bookingId: string, transactionId?: string) => {
-  let payment =
-    bookingId
-      ? await prisma.payment.findUnique({ where: { bookingId } })
-      : null;
+  let payment = bookingId
+    ? await prisma.payment.findUnique({ where: { bookingId } })
+    : null;
 
   if (!payment && transactionId) {
     payment = await prisma.payment.findFirst({ where: { transactionId } });
@@ -169,19 +168,20 @@ const markBookingPaid = async (bookingId: string, transactionId?: string) => {
   if (!payment) return null;
   if (payment.status === 'COMPLETED') return payment;
 
-  const updated = await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: 'COMPLETED',
-      paidAt: new Date(),
-      ...(transactionId ? { transactionId } : {}),
-    },
-  });
-
-  await prisma.booking.update({
-    where: { id: payment.bookingId },
-    data: { status: 'PAID' },
-  });
+  const [updated] = await prisma.$transaction([
+    prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: 'COMPLETED',
+        paidAt: new Date(),
+        ...(transactionId ? { transactionId } : {}),
+      },
+    }),
+    prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: { status: 'PAID' },
+    }),
+  ]);
 
   return updated;
 };
@@ -266,15 +266,16 @@ const validateSslCommerzTransaction = async (tranId: string, valId: string) => {
     throw Object.assign(new Error('SSLCommerz payment validation failed'), { statusCode: 400 });
   }
 
-  const updatedPayment = await prisma.payment.update({
-    where: { id: payment.id },
-    data: { status: 'COMPLETED', paidAt: new Date() },
-  });
-
-  await prisma.booking.update({
-    where: { id: payment.bookingId },
-    data: { status: 'PAID' },
-  });
+  const [updatedPayment] = await prisma.$transaction([
+    prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: 'COMPLETED', paidAt: new Date() },
+    }),
+    prisma.booking.update({
+      where: { id: payment.bookingId },
+      data: { status: 'PAID' },
+    }),
+  ]);
 
   return updatedPayment;
 };

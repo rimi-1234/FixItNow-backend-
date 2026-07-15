@@ -14,5 +14,9 @@ model Booking {
   payment    Payment?
   review     Review?
 
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([serviceId])
+  @@index([status])
   @@map("bookings")
 }

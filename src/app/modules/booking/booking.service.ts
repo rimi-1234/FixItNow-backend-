@@ -3,19 +3,14 @@ import { IBookingCreatePayload } from './booking.interface.js';
 import { BookingStatus } from '@prisma/client';
 
 const createBooking = async (customerId: string, payload: IBookingCreatePayload) => {
-  // Check if technician exists and is a technician
-  const technician = await prisma.user.findUnique({
-    where: { id: payload.technicianId, role: 'TECHNICIAN' }
-  });
-  if (!technician) throw Object.assign(new Error('Technician not found'), { statusCode: 404 });
+  const [technician, service] = await Promise.all([
+    prisma.user.findUnique({ where: { id: payload.technicianId, role: 'TECHNICIAN' } }),
+    prisma.service.findUnique({ where: { id: payload.serviceId } }),
+  ]);
 
-  // Check if service exists
-  const service = await prisma.service.findUnique({
-    where: { id: payload.serviceId }
-  });
+  if (!technician) throw Object.assign(new Error('Technician not found'), { statusCode: 404 });
   if (!service) throw Object.assign(new Error('Service not found'), { statusCode: 404 });
 
-  // Ensure service belongs to this technician
   if (service.technicianId !== payload.technicianId) {
     throw Object.assign(new Error('This service is not offered by the selected technician'), {
       statusCode: 400,
