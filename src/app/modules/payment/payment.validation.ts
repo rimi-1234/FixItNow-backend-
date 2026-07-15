@@ -12,6 +12,14 @@ const createPaymentValidationSchema = z.object({
   }),
 });
 
+const syncSessionValidationSchema = z.object({
+  body: z.object({
+    sessionId: z
+      .string({ message: 'sessionId is required' })
+      .min(1, { message: 'sessionId is required' }),
+  }),
+});
+
 const paymentIdParamValidationSchema = z.object({
   params: z.object({
     id: z.string().uuid({ message: 'Invalid payment id' }),
@@ -20,5 +28,6 @@ const paymentIdParamValidationSchema = z.object({
 
 export const PaymentValidation = {
   createPaymentValidationSchema,
+  syncSessionValidationSchema,
   paymentIdParamValidationSchema,
 };

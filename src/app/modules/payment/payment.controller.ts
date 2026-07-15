@@ -17,6 +17,25 @@ const createPayment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Browser return URL helper — verifies Stripe Checkout Session and marks booking PAID.
+// (Unlike /confirm, this is NOT a Stripe webhook endpoint.)
+const syncCheckoutSession = catchAsync(async (req: Request, res: Response) => {
+  const { sessionId } = req.body as { sessionId?: string };
+  if (!sessionId) {
+    throw Object.assign(new Error('sessionId is required'), { statusCode: 400 });
+  }
+
+  const result = await PaymentServices.syncCheckoutSessionPaid(sessionId, req.user.id);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: result.synced
+      ? 'Payment verified and booking marked as PAID'
+      : 'Checkout session is not paid yet',
+    data: result,
+  });
+});
+
 // Stripe webhook — receives raw body
 const confirmPayment = catchAsync(async (req: Request, res: Response) => {
   const sig = req.headers['stripe-signature'];
@@ -108,6 +127,7 @@ const getPaymentDetails = catchAsync(async (req: Request, res: Response) => {
 
 export const PaymentControllers = {
   createPayment,
+  syncCheckoutSession,
   confirmPayment,
   sslcommerzSuccess,
   sslcommerzFail,

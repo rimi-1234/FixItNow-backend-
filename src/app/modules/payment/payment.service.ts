@@ -141,8 +141,38 @@ const createPaymentIntent = async (
     throw Object.assign(new Error('Access denied: Not your booking'), { statusCode: 403 });
   if (booking.status !== 'ACCEPTED')
     throw Object.assign(new Error('Booking must be ACCEPTED before payment'), { statusCode: 400 });
-  if (booking.payment)
-    throw Object.assign(new Error('Payment already exists for this booking'), { statusCode: 400 });
+
+  // Resume an unfinished Stripe checkout instead of blocking the customer.
+  if (booking.payment) {
+    if (booking.payment.status === 'COMPLETED') {
+      throw Object.assign(new Error('Payment already completed for this booking'), { statusCode: 400 });
+    }
+
+    if (
+      booking.payment.provider === 'STRIPE' &&
+      booking.payment.status === 'PENDING' &&
+      booking.payment.transactionId
+    ) {
+      const session = await stripe.checkout.sessions.retrieve(booking.payment.transactionId);
+      if (session.url && session.status === 'open') {
+        return {
+          provider: 'STRIPE' as const,
+          gatewayUrl: session.url,
+          sessionId: session.id,
+          payment: booking.payment,
+        };
+      }
+      // Session expired or unusable — drop it so a fresh checkout can be created.
+      await prisma.payment.delete({ where: { id: booking.payment.id } });
+    } else if (booking.payment.status === 'PENDING') {
+      throw Object.assign(
+        new Error('A payment session is already pending for this booking'),
+        { statusCode: 400 }
+      );
+    } else {
+      throw Object.assign(new Error('Payment already exists for this booking'), { statusCode: 400 });
+    }
+  }
 
   if (provider === 'SSLCOMMERZ') {
     return createSslCommerzSession(booking.id, booking.service.price, booking.customer.email);
@@ -187,7 +217,7 @@ const markBookingPaid = async (bookingId: string, transactionId?: string) => {
 };
 
 /** Verify a Checkout Session with Stripe and mark the booking PAID if paid. */
-const syncCheckoutSessionPaid = async (sessionId: string) => {
+const syncCheckoutSessionPaid = async (sessionId: string, customerId?: string) => {
   const session = await stripe.checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== 'paid') {
@@ -199,10 +229,21 @@ const syncCheckoutSessionPaid = async (sessionId: string) => {
   }
 
   const bookingId = session.metadata?.bookingId || session.client_reference_id || '';
+
+  if (customerId && bookingId) {
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: { customerId: true },
+    });
+    if (!booking || booking.customerId !== customerId) {
+      throw Object.assign(new Error('Access denied: Not your booking'), { statusCode: 403 });
+    }
+  }
+
   const payment = await markBookingPaid(bookingId, session.id);
 
   return {
-    synced: true,
+    synced: !!payment,
     paymentStatus: session.payment_status,
     bookingId: payment?.bookingId || bookingId || null,
     payment,

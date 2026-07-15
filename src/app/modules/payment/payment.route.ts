@@ -14,6 +14,13 @@ router.post(
   PaymentControllers.createPayment
 );
 
+router.post(
+  '/sync-session',
+  auth(Role.CUSTOMER),
+  validateRequest(PaymentValidation.syncSessionValidationSchema),
+  PaymentControllers.syncCheckoutSession
+);
+
 router.post('/confirm', PaymentControllers.confirmPayment);
 
 router.post('/sslcommerz/success', PaymentControllers.sslcommerzSuccess);
